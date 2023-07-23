@@ -1,13 +1,20 @@
+#! python3.10
+
 import datetime
 import order_planning_server.auth.schemas as schemas
+import order_planning_server.db.db_conn as db
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 
-app = FastAPI()
+
+app = FastAPI(title="Order planning server")
 
 
 @app.get("/indices")
-def get_indices() -> schemas.IndicesResponse:
+async def get_indices(
+    cursor: db.Cursor = Depends(db.get_cursor),
+    # ) -> schemas.IndicesResponse:
+):
     """
     Returns indices with values averaged across all factories. This
     provides a summary view of order fulfilment status. Since the
@@ -21,6 +28,8 @@ def get_indices() -> schemas.IndicesResponse:
     - realised unutilized capacity
     - date on which fulfilment time and unutilized capacity were planned
     """
+    result = await db.get_indices_db(cursor)
+    # process to ensure result is consistent with schemas.IndicesResponse
     return
 
 
@@ -143,4 +152,4 @@ async def select(plan_id: schemas.PlanRequest):
 
 
 if __name__ == "__main__":
-    uvicorn.run("order_planning_server.main:app")
+    uvicorn.run("order_planning_server.main:app", host="0.0.0.0", port=8000)
