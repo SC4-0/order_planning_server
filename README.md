@@ -33,6 +33,6 @@ Developing in the Docker container:
 3. Run server.
 
 `cd` into `src`, and run:
-`python -m order_planning_server.main`
+`python3.10 -m order_planning_server.main`
 
 Depending on your OS, you may need to modify the networking e.g. IP on which server runs, IP that database is located at.
