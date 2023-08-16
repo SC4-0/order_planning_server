@@ -71,7 +71,8 @@ class CustomerGroupsResponse(BaseModel):
 class Allocation(BaseModel):
     factory_id: int
     customer_site_group_id: int
-    allocation_ratio: float
+    min_allocation_ratio: float
+    max_allocation_ratio: float
 
 
 class AllocationsResponse(BaseModel):
