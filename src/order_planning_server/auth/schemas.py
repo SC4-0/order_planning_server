@@ -1,6 +1,7 @@
 import datetime
 from pydantic import BaseModel
 from enum import Enum
+from typing import Optional
 
 
 # request models
@@ -23,20 +24,25 @@ class PlanRequest(BaseModel):
 
 
 # response models
-class IndicesResponse(BaseModel):
+class Indices(BaseModel):
     planned_fulfilment_time: int
     planned_unutilized_capacity: int
     plan_generation_date: datetime.date
     realised_fulfilment_time: int  # avg(select)
     realised_unutilized_capacity: int  # avg(select)
 
-
+# return only one column and date of indices
 class IndexResponse(BaseModel):
     value: str | None
     date: str | None
 
 
-class FactoryResponse(BaseModel):
+class IndicesResponse(BaseModel):
+    data: Optional[Indices]
+
+
+# using Single Factore - no need to use AVG() - using planned_factory_targets & factory_metrics - can use similar qurey of indices
+class Factory(BaseModel):
     factory_id: int
     factory_name: str
     dates: list[datetime.date]
@@ -46,26 +52,35 @@ class FactoryResponse(BaseModel):
     realised_unutilized_capacity: list[int]
 
 
+class FactoryResponse(BaseModel):
+    data: Optional[Factory]
+
+
 class FactoriesResponse(BaseModel):
-    factories: list[FactoryResponse]
+    data: Optional[list[Factory]]
 
 
 class Product(BaseModel):
     product_id: int
     product_name: str
-    dates: list[datetime.date]
-    orders: list[int]
+    order_dates: list[datetime.date] #order-date
+    quantities: list[int] #quantity
 
 
-class CustomerGroupResponse(BaseModel):
+# need to join customer_site_gp & customers & ordres & order_items & products
+class CustomerGroup(BaseModel):
     customer_group_id: int
     latitude: float
     longitude: float
-    products: Product
+    products: list[Product]
+
+
+class CustomerGroupResponse(BaseModel):
+    data: Optional[CustomerGroup]
 
 
 class CustomerGroupsResponse(BaseModel):
-    customer_groups: list[CustomerGroupResponse]
+    data: Optional[list[CustomerGroup]]
 
 
 class Allocation(BaseModel):
@@ -75,12 +90,16 @@ class Allocation(BaseModel):
     max_allocation_ratio: float
 
 
-class AllocationsResponse(BaseModel):
+class Allocations(BaseModel):
     plan_id: int
     allocations: list[Allocation]
 
 
-class PlanResponse(BaseModel):
+class AllocationsResponse(BaseModel):
+    data: Optional[Allocations]
+
+
+class Plan(BaseModel):
     plan_id: int
     planned_fulfilment_time: int
     planned_unutilized_capacity: int
@@ -90,5 +109,9 @@ class PlanResponse(BaseModel):
     selection_date: datetime.date | None
 
 
+class PlanResponse(BaseModel):
+    data: Optional[Plan]
+
+
 class PlansResponse(BaseModel):
-    plans: list[PlanResponse]
+    data: Optional[list[Plan]]

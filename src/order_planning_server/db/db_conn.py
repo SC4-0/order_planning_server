@@ -58,20 +58,15 @@ class SQL_Server_Connection_String:
 
 async def get_cursor() -> Cursor:
     conn_string_obj = SQL_Server_Connection_String(
-        "ODBC Driver 18 for SQL Server",
-        "host.docker.internal",
+        "ODBC Driver 17 for SQL Server",
+        "localhost",
         1433,
-        "order_planning",
+        "order_planning_UAT",
+        "yes",
+        "yes"
     )
-    conn_string_obj.set_uid_and_pwd()
+    conn_string_obj.set_uid_and_pwd("SA", "Password123!")
     conn_string = str(conn_string_obj)
     conn = await connect(dsn=conn_string, loop=loop)
     cursor = await conn.cursor()
     return cursor
-
-
-async def get_indices_db(cursor: Cursor):
-    query = "SELECT planned_fulfilment_time, planned_unutilized_capacity, daily_order_fulfilment_time, unutilized_capacity, record_date FROM order_planning..plans INNER JOIN (SELECT AVG(CAST(daily_order_fulfilment_time AS FLOAT)) AS daily_order_fulfilment_time, AVG(CAST(unutilized_capacity AS FLOAT)) AS unutilized_capacity, (SELECT MAX(record_date) FROM order_planning..factory_metrics) AS record_date FROM order_planning..factory_metrics WHERE record_date=(SELECT MAX(record_date) FROM order_planning..factory_metrics)) AS FM ON plans.plan_generation_date=fm.record_date;"
-    await cursor.execute(query)
-    records = await cursor.fetchall()
-    return records
