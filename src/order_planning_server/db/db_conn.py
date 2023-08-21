@@ -61,11 +61,11 @@ async def get_cursor() -> Cursor:
         "ODBC Driver 17 for SQL Server",
         "localhost",
         1433,
-        "order_planning_UAT",
+        "order_planning",
         "yes",
-        "yes"
+        "yes",
     )
-    conn_string_obj.set_uid_and_pwd("SA", "Password123!")
+    conn_string_obj.set_uid_and_pwd()
     conn_string = str(conn_string_obj)
     conn = await connect(dsn=conn_string, loop=loop)
     cursor = await conn.cursor()

@@ -2,6 +2,7 @@ from aioodbc.cursor import Cursor
 from order_planning_server.auth import schemas
 import datetime
 
+
 async def convert_to_dict(cursor: Cursor):
     rows = await cursor.fetchall()
     column_names = [desc[0] for desc in cursor.description]
@@ -11,7 +12,7 @@ async def convert_to_dict(cursor: Cursor):
 
 async def get_indices_db(cursor: Cursor):
     # query = "SELECT planned_fulfilment_time, planned_unutilized_capacity, daily_order_fulfilment_time, unutilized_capacity, record_date FROM order_planning..plans INNER JOIN (SELECT AVG(CAST(daily_order_fulfilment_time AS FLOAT)) AS daily_order_fulfilment_time, AVG(CAST(unutilized_capacity AS FLOAT)) AS unutilized_capacity, (SELECT MAX(record_date) FROM order_planning..factory_metrics) AS record_date FROM order_planning..factory_metrics WHERE record_date=(SELECT MAX(record_date) FROM order_planning..factory_metrics)) AS FM ON plans.plan_generation_date=fm.record_date;"
-   
+
     query = """
     SELECT planned_fulfilment_time, planned_unutilized_capacity, daily_order_fulfilment_time, unutilized_capacity, record_date 
     FROM [plans] INNER JOIN 
@@ -20,32 +21,64 @@ async def get_indices_db(cursor: Cursor):
     MAX(record_date) AS record_date 
     FROM [factory_metrics] 
     WHERE record_date=(SELECT MAX(record_date) FROM [factory_metrics])) AS FM 
-    ON plans.plan_generation_date = fm.record_date"""
+    ON CAST(plans.plan_generation_date AS DATE) = fm.record_date
+    WHERE plans.selected = 1 AND plans.plan_generation_date = (SELECT MAX(plans.plan_generation_date) from plans);"""
     await cursor.execute(query)
     result = await convert_to_dict(cursor)
 
     return result
 
 
-async def get_factories(cursor: Cursor, date: datetime.date, factory_id: int = None, skip: int = 0, limit: int = 100):
-    query = f"""
-    SELECT f.factory_id, f.factory_name, fm.record_date, fm.daily_order_fulfilment_time, fm.unutilized_capacity,
-    pf.planned_fulfilment_time, pf.planned_unutilized_capacity
-    FROM factories f, factory_metrics fm, planned_factory_targets pf
-    WHERE f.factory_id = fm.factory_id 
-    AND f.factory_id = pf.factory_id
-    AND fm.record_date = pf.planned_date 
-    AND pf.planned_date >= '{date}'"""
+async def get_factory_metrics_db(
+    cursor: Cursor,
+    after: datetime.date,
+    before: datetime.date,
+    factory_id: int = None,
+    skip: int = 0,
+    limit: int = 100,
+):
     if factory_id != None:
-        query += f" AND f.factory_id = {factory_id}"
-    
-    await cursor.execute(query)
-    result = await convert_to_dict(cursor)
+        query_planned = f"""
+        SELECT pft.factory_id, p.plan_generation_date, pft.planned_fulfilment_time, pft.planned_unutilized_capacity, pft.factory_id
+        FROM plans AS p JOIN planned_factory_targets AS pft ON p.plan_id = pft.plan_id
+        WHERE ((p.selected = 1) AND (pft.factory_id = '{factory_id}') AND (CAST(p.plan_generation_date AS DATE) >= CAST('{before}' AS DATE))
+        AND (CAST(p.plan_generation_date AS date <= CAST('{after}' AS DATE))) ORDER BY pft.factory_id, p.plan_generation_date;
+        """
 
-    return result
+        query_measured = f"""
+        SELECT fm.factory_id, fm.record_date, fm.daily_order_fulfilment_time, fm.unutilized_capacity FROM factory_metrics AS fm
+        WHERE fm.factory_id = '{factory_id}' ORDER BY fm.factory_id, fm.record_date;
+        """
+    else:
+        query_planned = f"""
+        SELECT pft.factory_id, p.plan_generation_date, pft.planned_fulfilment_time, pft.planned_unutilized_capacity, pft.factory_id
+        FROM plans AS p JOIN planned_factory_targets AS pft ON p.plan_id = pft.plan_id
+        WHERE ((p.selected = 1) AND (CAST(p.plan_generation_date AS DATE) >= CAST('{before}' AS DATE))
+        AND (CAST(p.plan_generation_date AS date <= CAST('{after}' AS DATE))) ORDER BY pft.factory_id, p.plan_generation_date;
+        """
+
+        query_measured = f"""
+        SELECT fm.factory_id, fm.record_date, fm.daily_order_fulfilment_time, fm.unutilized_capacity FROM factory_metrics AS fm
+        ORDER BY fm.factory_id, fm.record_date;
+        """
+
+    await cursor.execute(query_planned)
+    res_planned = await convert_to_dict(cursor)
+
+    await cursor.execute(query_measured)
+    res_measured = await convert_to_dict(cursor)
+
+    return (res_planned, res_measured)
 
 
-async def get_customer_groups(cursor: Cursor, date: datetime.date, customer_group_id: int = None, skip: int = 0, limit: int = 100):
+async def get_customer_groups_data_db(
+    cursor: Cursor,
+    after: datetime.date,
+    before: datetime.date,
+    customer_group_id: int = None,
+    skip: int = 0,
+    limit: int = 100,
+):
     query = f"""
     SELECT csg.customer_site_group_id, csg.latitude, csg.longitude, o.order_date, oi.quantity, p.product_id, p.product_name 
     FROM customer_site_groups csg, customers c, orders o, order_items oi, products p 
@@ -53,17 +86,21 @@ async def get_customer_groups(cursor: Cursor, date: datetime.date, customer_grou
     AND c.customer_id = o.customer_id 
     AND o.order_id = oi.order_id 
     AND oi.item_id = p.product_id 
-    AND o.order_date >= '{date}'"""
+    AND o.order_date >= '{after}'
+    AND o.order_date <= '{before}'
+    """
     if customer_group_id != None:
         query += f" AND csg.customer_site_group_id = {customer_group_id}"
-    
+
     await cursor.execute(query)
     result = await convert_to_dict(cursor)
 
     return result
 
 
-async def get_allocation_by_planid(cursor: Cursor, plan_id: int, skip: int = 0, limit: int = 100):
+async def get_allocation_by_planid(
+    cursor: Cursor, plan_id: int, skip: int = 0, limit: int = 100
+):
     query = f"""
     SELECT plan_id, factory_id, customer_site_group_id, min_allocation_ratio, max_allocation_ratio 
     FROM planned_allocations 
@@ -75,20 +112,24 @@ async def get_allocation_by_planid(cursor: Cursor, plan_id: int, skip: int = 0, 
     return result
 
 
-async def get_plans(cursor: Cursor, plan_id: int = None, skip: int = 0, limit: int = 100):
+async def get_plans(
+    cursor: Cursor, plan_id: int = None, skip: int = 0, limit: int = 100
+):
     query = """
-    SELECT plan_id, planned_fulfilment_time, planned_unutilized_capacity, plan_generation_date, selected, autoselected, selection_date 
+    SELECT plan_id, planned_fulfilment_time, planned_unutilized_capacity, plan_generation_date, selected, autoselected, selection_date, plan_category 
     FROM plans"""
     if plan_id != None:
         query += f" WHERE plan_id = {plan_id}"
-    
+
     await cursor.execute(query)
     result = await convert_to_dict(cursor)
 
     return result
 
 
-async def select_plan(cursor: Cursor, plan_req: schemas.PlanRequest, skip: int = 0, limit: int = 100):
+async def select_plan(
+    cursor: Cursor, plan_req: schemas.PlanRequest, skip: int = 0, limit: int = 100
+):
     query = f"""UPDATE plans SET selected = 1, selection_date = GETDATE() WHERE plan_id = {plan_id}"""
 
     await cursor.execute(query)

@@ -12,11 +12,37 @@ class IndexRequest(str, Enum):
     realised_unutilised_capacity = "realised_unutilised_capacity"
 
 
-class ProblemParametersRequest(BaseModel):
+class FactoryAddressParameter(BaseModel):
+    factory_id: int
+    factory_lat: float
+    factory_lon: float
+
+
+class ProductionParameter(BaseModel):
+    product_id: int
+    production_rate: float
+
+
+class FactoryProductionParameter(BaseModel):
+    factory_id: int
+    max_production_hrs: float
+    production_rate: list[ProductionParameter]
+
+
+class ProductDemandParameter(BaseModel):
+    product_id: int
     order_mean: float
     order_std: float
-    max_prod_capacity: int
-    prod_rates: list[tuple[int, int]]
+
+
+class DemandParameter(BaseModel):
+    customer_site_group_id: int
+    customer_demand: list[ProductDemandParameter]
+
+
+class ProblemParametersRequest(BaseModel):
+    factory_parameters: list[FactoryProductionParameter]
+    demand_parameters: list[DemandParameter]
 
 
 class PlanRequest(BaseModel):
@@ -28,8 +54,9 @@ class Indices(BaseModel):
     planned_fulfilment_time: int
     planned_unutilized_capacity: int
     plan_generation_date: datetime.date
-    realised_fulfilment_time: int  # avg(select)
-    realised_unutilized_capacity: int  # avg(select)
+    realised_fulfilment_time: int
+    realised_unutilized_capacity: float
+
 
 # return only one column and date of indices
 class IndexResponse(BaseModel):
@@ -41,15 +68,16 @@ class IndicesResponse(BaseModel):
     data: Optional[Indices]
 
 
-# using Single Factore - no need to use AVG() - using planned_factory_targets & factory_metrics - can use similar qurey of indices
 class Factory(BaseModel):
     factory_id: int
     factory_name: str
-    dates: list[datetime.date]
-    planned_fulfilment_times: list[int]
-    planned_unutilized_capacities: list[int]
+    planned_datetimes: list[datetime.datetime]
+    planned_unutilized_capacity: list[float]
+    planned_fulfilment_time: list[int]
+    realised_dates: list[datetime.date]
+    realised_unutilized_capacity: list[float]
     realised_fulfilment_time: list[int]
-    realised_unutilized_capacity: list[int]
+    # str, str for planned fulfilment time, unutilized capacity
 
 
 class FactoryResponse(BaseModel):
@@ -63,8 +91,8 @@ class FactoriesResponse(BaseModel):
 class Product(BaseModel):
     product_id: int
     product_name: str
-    order_dates: list[datetime.date] #order-date
-    quantities: list[int] #quantity
+    order_dates: list[datetime.date]  # order-date
+    quantities: list[int]  # quantity
 
 
 # need to join customer_site_gp & customers & ordres & order_items & products
