@@ -58,8 +58,8 @@ class SQL_Server_Connection_String:
 
 async def get_cursor() -> Cursor:
     conn_string_obj = SQL_Server_Connection_String(
-        "ODBC Driver 17 for SQL Server",
-        "localhost",
+        "ODBC Driver 18 for SQL Server",
+        "host.docker.internal",
         1433,
         "order_planning",
         "yes",

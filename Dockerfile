@@ -26,7 +26,7 @@ RUN apt-get update && apt-get install -y libpython3.10 python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
 # install python env - no venv needed due to containerization
-RUN mkdir /home/order_planning_server
-ADD . /home/order_planning_server
-WORKDIR /home/order_planning_server
-RUN python3.10 -m pip install -r requirements/dev.txt
+# RUN mkdir /home/order_planning_server
+# ADD . /home/order_planning_server
+# WORKDIR /home/order_planning_server
+# RUN python3.10 -m pip install -r requirements/dev.txt

@@ -42,7 +42,7 @@ async def get_factory_metrics_db(
         SELECT pft.factory_id, p.plan_generation_date, pft.planned_fulfilment_time, pft.planned_unutilized_capacity, pft.factory_id
         FROM plans AS p JOIN planned_factory_targets AS pft ON p.plan_id = pft.plan_id
         WHERE ((p.selected = 1) AND (pft.factory_id = '{factory_id}') AND (CAST(p.plan_generation_date AS DATE) >= CAST('{before}' AS DATE))
-        AND (CAST(p.plan_generation_date AS date <= CAST('{after}' AS DATE))) ORDER BY pft.factory_id, p.plan_generation_date;
+        AND (CAST(p.plan_generation_date AS DATE) <= CAST('{after}' AS DATE))) ORDER BY pft.factory_id, p.plan_generation_date;
         """
 
         query_measured = f"""
@@ -54,7 +54,7 @@ async def get_factory_metrics_db(
         SELECT pft.factory_id, p.plan_generation_date, pft.planned_fulfilment_time, pft.planned_unutilized_capacity, pft.factory_id
         FROM plans AS p JOIN planned_factory_targets AS pft ON p.plan_id = pft.plan_id
         WHERE ((p.selected = 1) AND (CAST(p.plan_generation_date AS DATE) >= CAST('{before}' AS DATE))
-        AND (CAST(p.plan_generation_date AS date <= CAST('{after}' AS DATE))) ORDER BY pft.factory_id, p.plan_generation_date;
+        AND (CAST(p.plan_generation_date AS DATE) <= CAST('{after}' AS DATE))) ORDER BY pft.factory_id, p.plan_generation_date;
         """
 
         query_measured = f"""
@@ -127,7 +127,7 @@ async def get_plans(
     return result
 
 
-async def select_plan(
+async def select_plan_db(
     cursor: Cursor, plan_req: schemas.PlanRequest, skip: int = 0, limit: int = 100
 ):
     query = f"""UPDATE plans SET selected = 1, selection_date = GETDATE() WHERE plan_id = {plan_id}"""
