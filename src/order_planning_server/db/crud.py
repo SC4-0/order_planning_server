@@ -127,6 +127,22 @@ async def get_plans(
     return result
 
 
+async def get_factory_parameters_db(cursor: Cursor):
+    query_1 = """
+    SELECT factory_id, factory_name, production_hours, latitude, longitude from factories;
+    """
+    query_2 = """
+    SELECT fp.factory_id, fp.product_id, f.factory_name, p.product_name, fp.production_rate from factories as f, factory_production as fp, products as p where f.factory_id = fp.factory_id and fp.product_id = p.product_id;
+    """
+    await cursor.execute(query_1)
+    res_1 = await convert_to_dict(cursor)
+
+    await cursor.execute(query_2)
+    res_2 = await convert_to_dict(cursor)
+
+    return (res_1, res_2)
+
+
 async def select_plan_db(
     cursor: Cursor, plan_req: schemas.PlanRequest, skip: int = 0, limit: int = 100
 ):
