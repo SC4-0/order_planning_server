@@ -5,6 +5,7 @@ import uvicorn
 from fastapi import FastAPI, Depends, Query
 from itertools import groupby
 from operator import itemgetter
+from collections import defaultdict
 
 import order_planning_server.auth.schemas as schemas
 import order_planning_server.db.db_conn as db
@@ -67,7 +68,8 @@ async def get_factory_metrics(
     before: datetime.date,
     cursor: db.Cursor = Depends(db.get_cursor),
 ):
-    # untested due to lack of simultaneous factory metrics and planned targets data
+    # Returns both planned factory targets and realised factory metrics.
+    # untested due to db_records_planned being empty
     """
     Returns indices of all factories within the after and before date range, inclusive.
     The indices are:
@@ -300,13 +302,6 @@ async def get_customer_group_data(
     return result
 
 
-"""
-@app.get("/allocations")
-async def get_allocations() -> schemas.AllocationsResponse:
-    return
-"""
-
-
 @app.get("/allocations/{plan_id}", response_model=schemas.AllocationsResponse)
 async def get_allocation(plan_id: int, cursor: db.Cursor = Depends(db.get_cursor)):
     """
@@ -341,7 +336,7 @@ async def get_plans(cursor: db.Cursor = Depends(db.get_cursor)):
     """
     Returns list of plans, each containing plan_id.
     """
-    db_records = await crud.get_plans(cursor)
+    db_records = await crud.get_plans_db(cursor)
     result = dict()
 
     if len(db_records) > 0:
@@ -361,7 +356,7 @@ async def get_plans(cursor: db.Cursor = Depends(db.get_cursor)):
 
         result = schemas.PlansResponse(data=plans)
 
-    return result / get_
+    return result
 
 
 @app.get("/plans/{plan_id}", response_model=schemas.PlanResponse)
@@ -372,7 +367,7 @@ async def get_plan(plan_id: int, cursor: db.Cursor = Depends(db.get_cursor)):
     whether the plan was selected, either by the user or auto-selected,
     and the date of selection.
     """
-    db_records = await crud.get_plans(cursor, plan_id)
+    db_records = await crud.get_plans_db(cursor, plan_id)
     result = dict()
 
     if len(db_records) > 0:
@@ -417,12 +412,42 @@ async def optimize(
     return
 
 
-@app.get(
-    "/factory_parameters"
-)  # get all factory address, production hours, production rate,
+@app.get("/factory_parameters", response_model=schemas.FactoryParametersResponse)
 async def get_factory_parameters(cursor: db.Cursor = Depends(db.get_cursor)):
     db_records = await crud.get_factory_parameters_db(cursor)
+    result = dict()
+
     result = db_records
+    if (len(db_records[0]) > 0) and (len(db_records[1]) > 0):
+        result_information = []
+        for row in db_records[0]:
+            result_information.append(
+                schemas.FactoryInformationParameter(
+                    factory_id=row.get("factory_id"),
+                    factory_name=row.get("factory_name"),
+                    production_hours=row.get("production_hours"),
+                    latitude=row.get("latitude"),
+                    longitude=row.get("longitude"),
+                )
+            )
+
+        result_production = []
+        for row in db_records[1]:
+            result_production.append(
+                schemas.FactoryProductionParameter(
+                    factory_id=row.get("factory_id"),
+                    factory_name=row.get("factory_name"),
+                    product_id=row.get("product_id"),
+                    product_name=row.get("product_name"),
+                    production_rate=row.get("production_rate"),
+                )
+            )
+
+        result = schemas.FactoryParametersResponse(
+            factory_information=result_information,
+            factory_production_information=result_production,
+        )
+
     return result
 
 
@@ -467,8 +492,36 @@ async def get_factory_targets(
     """
     get planned factory targets for given plan_id for all factories
     """
-    db_records = await crud.get_factory_targets_db(cursor)
+    db_records = await crud.get_factory_targets_db(cursor, plan_id)
     result = dict()
+
+    if len(db_records) > 0:
+        # for each plan, each factory
+        plans = defaultdict(list)
+        sorted_rows = sorted(db_records, key=itemgetter("plan_id"))
+        for key, factory_targets in groupby(sorted_rows, key=itemgetter("plan_id")):
+            factory_targets = list(factory_targets)
+            for factory_target in factory_targets:
+                plans[key].append(
+                    schemas.FactoryTarget(
+                        factory_id=factory_target.get("factory_id"),
+                        planned_fulfilment_time=factory_target.get(
+                            "planned_fulfilment_time"
+                        ),
+                        planned_unutilized_capacity=factory_target.get(
+                            "planned_unutilized_capacity"
+                        ),
+                        planned_date=factory_target.get("planned_date"),
+                        min_prod_hours=factory_target.get("min_prod_hours"),
+                    )
+                )
+
+        result = schemas.FactoryTargetResponse(
+            data=[
+                schemas.PlannedFactoryTargets(plan_id=p, factory_targets=plans[p])
+                for p in plans
+            ]
+        )
     return result
 
 

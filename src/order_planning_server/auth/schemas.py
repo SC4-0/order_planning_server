@@ -12,23 +12,6 @@ class IndexRequest(str, Enum):
     realised_unutilised_capacity = "realised_unutilised_capacity"
 
 
-class FactoryAddressParameter(BaseModel):
-    factory_id: int
-    factory_lat: float
-    factory_lon: float
-
-
-class ProductionParameter(BaseModel):
-    product_id: int
-    production_rate: float
-
-
-class FactoryProductionParameter(BaseModel):
-    factory_id: int
-    max_production_hrs: float
-    production_rate: list[ProductionParameter]
-
-
 class ProductDemandParameter(BaseModel):
     product_id: int
     order_mean: float
@@ -41,7 +24,7 @@ class DemandParameter(BaseModel):
 
 
 class ProblemParametersRequest(BaseModel):
-    factory_parameters: list[FactoryProductionParameter]
+    factory_parameters: list
     demand_parameters: list[DemandParameter]
 
 
@@ -143,3 +126,41 @@ class PlanResponse(BaseModel):
 
 class PlansResponse(BaseModel):
     data: Optional[list[Plan]]
+
+
+class FactoryInformationParameter(BaseModel):
+    factory_id: int
+    factory_name: str
+    production_hours: int
+    latitude: float
+    longitude: float
+
+
+class FactoryProductionParameter(BaseModel):
+    factory_id: int
+    factory_name: str
+    product_id: int
+    product_name: str
+    production_rate: float
+
+
+class FactoryParametersResponse(BaseModel):
+    factory_information: list[FactoryInformationParameter]
+    factory_production_information: list[FactoryProductionParameter]
+
+
+class FactoryTarget(BaseModel):
+    factory_id: int
+    planned_fulfilment_time: float
+    planned_unutilized_capacity: float
+    planned_date: datetime.date
+    min_prod_hours: float
+
+
+class PlannedFactoryTargets(BaseModel):
+    plan_id: int
+    factory_targets: list[FactoryTarget]
+
+
+class FactoryTargetResponse(BaseModel):
+    data: list[PlannedFactoryTargets]
