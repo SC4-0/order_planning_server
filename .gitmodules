@@ -1,0 +1,3 @@
+[submodule "src/planning"]
+	path = src/planning
+	url = https://github.com/CSTan123/orderPlanning

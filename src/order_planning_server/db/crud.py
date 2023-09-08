@@ -25,6 +25,7 @@ async def get_indices_db(cursor: Cursor):
     WHERE plans.selected = 1 AND plans.plan_generation_date = (SELECT MAX(plans.plan_generation_date) from plans);"""
     await cursor.execute(query)
     result = await convert_to_dict(cursor)
+    await cursor.close()
 
     return result
 
@@ -69,6 +70,7 @@ async def get_factory_metrics_db(
 
     await cursor.execute(query_measured)
     res_measured = await convert_to_dict(cursor)
+    await cursor.close()
 
     return (res_planned, res_measured)
 
@@ -96,6 +98,7 @@ async def get_customer_groups_data_db(
 
     await cursor.execute(query)
     result = await convert_to_dict(cursor)
+    await cursor.close()
 
     return result
 
@@ -110,6 +113,22 @@ async def get_allocation_by_planid(
 
     await cursor.execute(query)
     result = await convert_to_dict(cursor)
+    await cursor.close()
+
+    return result
+
+
+async def get_allocation_by_planids(
+    cursor: Cursor, plan_ids: list[int], skip: int = 0, limit: int = 100
+):
+    query = f"""
+    SELECT plan_id, factory_id, customer_site_group_id, min_allocation_ratio, max_allocation_ratio 
+    FROM planned_allocations 
+    WHERE plan_id IN ({",".join([str(i) for i in plan_ids])})"""
+
+    await cursor.execute(query)
+    result = await convert_to_dict(cursor)
+    await cursor.close()
 
     return result
 
@@ -125,6 +144,21 @@ async def get_plans_db(
 
     await cursor.execute(query)
     result = await convert_to_dict(cursor)
+    await cursor.close()
+
+    return result
+
+
+async def get_plans_from_plan_ids_db(cursor: Cursor, plan_ids: list[int]):
+    query = f"""
+    SELECT plan_id, planned_fulfilment_time, planned_unutilized_capacity, plan_generation_date, selected, autoselected, selection_date, plan_category 
+    FROM plans WHERE plan_id IN ({','.join([str(i) for i in plan_ids])})"""
+    print(plan_ids)
+    print(query)
+
+    await cursor.execute(query)
+    result = await convert_to_dict(cursor)
+    await cursor.close()
 
     return result
 
@@ -141,6 +175,7 @@ async def get_factory_parameters_db(cursor: Cursor):
 
     await cursor.execute(query_2)
     res_2 = await convert_to_dict(cursor)
+    await cursor.close()
 
     return (res_1, res_2)
 
@@ -162,15 +197,67 @@ async def get_factory_targets_db(cursor: Cursor, plan_id: list[int]):
 
     await cursor.execute(query)
     result = await convert_to_dict(cursor)
+    await cursor.close()
+
     return result
+
+
+async def insert_plans_db(
+    cursor: Cursor, plans_str: list[str], planned_factory_targets, planned_allocations
+):
+    plans_str = ",".join(plans_str)
+    query1 = f"""
+    INSERT INTO plans OUTPUT INSERTED.plan_id VALUES {plans_str};
+    """
+    await cursor.execute(query1)
+    result = await cursor.fetchall()  # plan_ids
+    plan_ids = [i[0] for i in result]
+
+    planned_factory_targets_full = []
+    planned_factory_targets_plan_ids = plan_ids * 3
+    for idx in range(len(planned_factory_targets_plan_ids)):
+        planned_factory_targets_full.append(
+            [
+                planned_factory_targets[idx][0],
+                planned_factory_targets_plan_ids[idx],
+                *planned_factory_targets[idx][1:],
+            ]
+        )
+    planned_factory_targets_str = []
+    for pft in planned_factory_targets_full:
+        planned_factory_targets_str.append(
+            "({}, {}, {:.3f}, {:.3f}, '{}', {})".format(*pft)
+        )
+    planned_factory_targets_str = ",".join(planned_factory_targets_str)
+
+    planned_allocations_full = []
+    planned_allocations_plan_ids = plan_ids * 9
+    for idx in range(len(planned_allocations_plan_ids)):
+        planned_allocations_full.append(
+            [planned_allocations_plan_ids[idx], *planned_allocations[idx]]
+        )
+    planned_allocations_str = []
+    for pa in planned_allocations_full:
+        planned_allocations_str.append("({},{},{},{:.9f},{:.9f})".format(*pa))
+    planned_allocations_str = ",".join(planned_allocations_str)
+    query2 = f"""
+    INSERT INTO planned_factory_targets VALUES {planned_factory_targets_str};
+    INSERT INTO planned_allocations VALUES {planned_allocations_str};
+    """
+    await cursor.execute(query2)
+    await cursor.commit()
+    await cursor.close()
+
+    return plan_ids
 
 
 async def select_plan_db(
     cursor: Cursor, plan_req: schemas.PlanRequest, skip: int = 0, limit: int = 100
 ):
-    query = f"""UPDATE plans SET selected = 1, selection_date = GETDATE() WHERE plan_id = {plan_id}"""
+    query = f"""UPDATE plans SET selected = 1, selection_date = GETDATE() WHERE plan_id = {plan_req.plan_id}"""
 
     await cursor.execute(query)
-    result = await convert_to_dict(cursor)
+    await cursor.commit()
+    await cursor.close()
 
-    return result
+    return {}

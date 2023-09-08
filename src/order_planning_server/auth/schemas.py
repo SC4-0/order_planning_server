@@ -12,24 +12,30 @@ class IndexRequest(str, Enum):
     realised_unutilised_capacity = "realised_unutilised_capacity"
 
 
-class ProductDemandParameter(BaseModel):
+class CustomerGroupData(BaseModel):
+    customer_group_id: int
     product_id: int
-    order_mean: float
-    order_std: float
+    mean_order_qty: float
+    std_order_qty: float
 
 
-class DemandParameter(BaseModel):
-    customer_site_group_id: int
-    customer_demand: list[ProductDemandParameter]
+class FactoryData1(BaseModel):
+    factory_id: int
+    production_hours: int
 
 
-class ProblemParametersRequest(BaseModel):
-    factory_parameters: list
-    demand_parameters: list[DemandParameter]
+class FactoryData2(BaseModel):
+    factory_id: int
+    product_id: int
+    production_rate: float
 
 
 class PlanRequest(BaseModel):
     plan_id: int
+
+
+class PlansRequest(BaseModel):
+    plan_ids: list[int]
 
 
 # response models
@@ -110,6 +116,10 @@ class AllocationsResponse(BaseModel):
     data: Optional[Allocations]
 
 
+class MultipleAllocationsResponse(BaseModel):
+    data: list[Allocations]
+
+
 class Plan(BaseModel):
     plan_id: int
     planned_fulfilment_time: int
@@ -126,6 +136,10 @@ class PlanResponse(BaseModel):
 
 class PlansResponse(BaseModel):
     data: Optional[list[Plan]]
+
+
+class PlanIdsResponse(BaseModel):
+    plan_ids: list[int]
 
 
 class FactoryInformationParameter(BaseModel):

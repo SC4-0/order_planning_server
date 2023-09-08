@@ -2,11 +2,14 @@
 
 import datetime
 import uvicorn
+import numpy as np
+import aio_pika
 from fastapi import FastAPI, Depends, Query
 from itertools import groupby
-from operator import itemgetter
+from operator import itemgetter, attrgetter
 from collections import defaultdict
 
+from planning.orderPlanner import plan as plan_optimize
 import order_planning_server.auth.schemas as schemas
 import order_planning_server.db.db_conn as db
 import order_planning_server.db.crud as crud
@@ -302,6 +305,38 @@ async def get_customer_group_data(
     return result
 
 
+@app.get("/allocations", response_model=schemas.MultipleAllocationsResponse)
+async def get_allocation(
+    plan_id: list[int] = Query(...), cursor: db.Cursor = Depends(db.get_cursor)
+):
+    """
+    Returns allocation ratios for given plan_id.
+    """
+    db_records = await crud.get_allocation_by_planids(cursor, plan_id)
+    result = dict()
+
+    if len(db_records) > 0:
+        plans = defaultdict(list)
+        sorted_rows = sorted(db_records, key=itemgetter("plan_id"))
+        for key, allocations in groupby(sorted_rows, key=itemgetter("plan_id")):
+            allocations = list(allocations)
+            for row in allocations:
+                plans[key].append(
+                    schemas.Allocation(
+                        factory_id=row.get("factory_id"),
+                        customer_site_group_id=row.get("customer_site_group_id"),
+                        min_allocation_ratio=row.get("min_allocation_ratio"),
+                        max_allocation_ratio=row.get("max_allocation_ratio"),
+                    )
+                )
+
+        result = schemas.MultipleAllocationsResponse(
+            data=[schemas.Allocations(plan_id=p, allocations=plans[p]) for p in plans]
+        )
+
+    return result
+
+
 @app.get("/allocations/{plan_id}", response_model=schemas.AllocationsResponse)
 async def get_allocation(plan_id: int, cursor: db.Cursor = Depends(db.get_cursor)):
     """
@@ -359,7 +394,37 @@ async def get_plans(cursor: db.Cursor = Depends(db.get_cursor)):
     return result
 
 
-@app.get("/plans/{plan_id}", response_model=schemas.PlanResponse)
+@app.post("/plans", response_model=schemas.PlansResponse)
+async def post_plans(
+    plan_ids: schemas.PlansRequest, cursor: db.Cursor = Depends(db.get_cursor)
+):
+    """
+    Returns list of plans, each containing plan_id.
+    """
+    db_records = await crud.get_plans_from_plan_ids_db(cursor, plan_ids.plan_ids)
+    result = dict()
+
+    if len(db_records) > 0:
+        plans = []
+        for row in db_records:
+            plans.append(
+                schemas.Plan(
+                    plan_id=row.get("plan_id"),
+                    planned_fulfilment_time=row.get("planned_fulfilment_time"),
+                    planned_unutilized_capacity=row.get("planned_unutilized_capacity"),
+                    plan_generation_date=row.get("plan_generation_date"),
+                    selected=row.get("selected"),
+                    autoselected=row.get("autoselected"),
+                    selection_date=row.get("selection_date"),
+                )
+            )
+
+        result = schemas.PlansResponse(data=plans)
+
+    return result
+
+
+@app.get("/plans/{plan_id}")
 async def get_plan(plan_id: int, cursor: db.Cursor = Depends(db.get_cursor)):
     """
     Returns a plan, comprising: average planned fulfilment time,
@@ -388,28 +453,117 @@ async def get_plan(plan_id: int, cursor: db.Cursor = Depends(db.get_cursor)):
     return result
 
 
-# optimization
-@app.post("/optimize")
+@app.post("/optimize", response_model=schemas.PlanIdsResponse)
 async def optimize(
-    problem_parameters: schemas.ProblemParametersRequest,
+    factory_data1: list[schemas.FactoryData1],
+    factory_data2: list[schemas.FactoryData2],
+    customer_data: list[schemas.CustomerGroupData],
     cursor: db.Cursor = Depends(db.get_cursor),
-):  # import engine as etc.
-    # gets number of plan_ids currently in database.
-    # gets number of plans from engine, sends back ids accordingly.
-    # use aiopika to push to rabbitmq
+):
     """
-    Executes multi-objective optimization with given problem parameters.
-
-    - minimize: order fulfilment time and unutilized production capacity
-    - decision variables: allocation of orders to factories, min production
-    quantities to start production
-    - problem parameters: demand distribution for each customer group,
-    max production capacity available for each factory, production time
-    for each factory, transportation time between factories and customer
-    groups
-
+    Takes factory and customer data as input, stores planned solutions in database,
+    and eturns generated plan ids.
     """
-    return
+    nF, nC, nP, tLT = 3, 3, 2, np.array([[1, 2, 3], [2, 1, 2], [3, 2, 1]])
+    maxHr = [
+        f.production_hours for f in sorted(factory_data1, key=attrgetter("factory_id"))
+    ]
+    pRate = [
+        [gg.production_rate for gg in list(g)]
+        for k, g in groupby(
+            sorted(factory_data2, key=attrgetter("product_id", "factory_id")),
+            key=attrgetter("product_id"),
+        )
+    ]
+    aveD = [
+        [gg.mean_order_qty for gg in list(g)]
+        for k, g in groupby(
+            sorted(customer_data, key=attrgetter("product_id", "customer_group_id")),
+            key=attrgetter("product_id"),
+        )
+    ]
+    devD = [
+        [gg.std_order_qty / gg.mean_order_qty for gg in list(g)]
+        for k, g in groupby(
+            sorted(customer_data, key=attrgetter("product_id", "customer_group_id")),
+            key=attrgetter("product_id"),
+        )
+    ]
+    param = {
+        "nF": nF,
+        "nC": nC,
+        "nP": nP,
+        "tLT": np.array(tLT),
+        "maxHr": np.array(maxHr),
+        "pRate": np.array(pRate),
+        "aveD": np.array(aveD),
+        "devD": np.array(devD),
+    }
+    (
+        sol,
+        sc_performance,
+        factory_performance,
+        unutilized_capacity_preference,
+        plan_category,
+    ) = plan_optimize(param)
+
+    curr_datetime = str(datetime.datetime.now()).rsplit(".")[0]
+
+    # planned_fulfilment_time, planned_unutilized_capacity, plan_generation_date,
+    # plan_category, unutilized_capacity_preference, selected, autoselected, selection_date
+    plans = []
+    for row in zip(
+        sc_performance[:, 0],
+        sc_performance[:, 1],
+        plan_category,
+        unutilized_capacity_preference,
+    ):
+        plans.append([row[0], row[1], curr_datetime, row[2], row[3], 0, 0])
+
+    plans_str = []
+    for plan in plans:
+        plans_str.append(
+            "({:.3f}, {:.3f}, '{}', {}, {:.7f}, {}, {}, NULL)".format(*plan)
+        )
+
+    # factory_id, _, planned_fulfilment_time, planned_unutilized_capacity, planned_date, min_prod_hours
+    planned_factory_targets = []  # missing second element, plan_id
+    for row in zip(factory_performance[:, 0], factory_performance[:, 1], sol[:, -3]):
+        planned_factory_targets.append([1, row[0], row[1], curr_datetime, row[2]])
+    for row in zip(factory_performance[:, 2], factory_performance[:, 3], sol[:, -2]):
+        planned_factory_targets.append([2, row[0], row[1], curr_datetime, row[2]])
+    for row in zip(factory_performance[:, 4], factory_performance[:, 5], sol[:, -1]):
+        planned_factory_targets.append([3, row[0], row[1], curr_datetime, row[2]])
+
+    # _, factory_id, customer_site_group_id, min_allocation_ration, max_allocation_ratio
+    planned_allocations = []
+
+    for row in zip(sol[:, 0], sol[:, 1]):
+        planned_allocations.append([1, 1, row[0], row[1]])
+    for row in zip(sol[:, 2], sol[:, 3]):
+        planned_allocations.append([2, 1, row[0], row[1]])
+    for row in zip(sol[:, 4], sol[:, 5]):
+        planned_allocations.append([3, 1, row[0], row[1]])
+    for row in zip(sol[:, 6], sol[:, 7]):
+        planned_allocations.append([1, 2, row[0], row[1]])
+    for row in zip(sol[:, 8], sol[:, 9]):
+        planned_allocations.append([2, 2, row[0], row[1]])
+    for row in zip(sol[:, 10], sol[:, 11]):
+        planned_allocations.append([3, 2, row[0], row[1]])
+    for row in zip(sol[:, 12], sol[:, 13]):
+        planned_allocations.append([1, 3, row[0], row[1]])
+    for row in zip(sol[:, 14], sol[:, 15]):
+        planned_allocations.append([2, 3, row[0], row[1]])
+    for row in zip(sol[:, 16], sol[:, 17]):
+        planned_allocations.append([3, 3, row[0], row[1]])
+
+    db_records = await crud.insert_plans_db(
+        cursor, plans_str, planned_factory_targets, planned_allocations
+    )
+
+    result = schemas.PlanIdsResponse(plan_ids=db_records)  # process db records
+
+    return result
 
 
 @app.get("/factory_parameters", response_model=schemas.FactoryParametersResponse)
