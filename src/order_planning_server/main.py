@@ -367,11 +367,13 @@ async def get_allocation(plan_id: int, cursor: db.Cursor = Depends(db.get_cursor
 
 
 @app.get("/plans", response_model=schemas.PlansResponse)
-async def get_plans(cursor: db.Cursor = Depends(db.get_cursor)):
+async def get_plans_from_plan_ids(
+    plan_id: list[int] = Query(...), cursor: db.Cursor = Depends(db.get_cursor)
+):
     """
-    Returns list of plans, each containing plan_id.
+    Returns list of plans given plan_ids.
     """
-    db_records = await crud.get_plans_db(cursor)
+    db_records = await crud.get_plans_from_plan_ids_db(cursor, plan_id)
     result = dict()
 
     if len(db_records) > 0:
@@ -394,14 +396,12 @@ async def get_plans(cursor: db.Cursor = Depends(db.get_cursor)):
     return result
 
 
-@app.post("/plans", response_model=schemas.PlansResponse)
-async def post_plans(
-    plan_ids: schemas.PlansRequest, cursor: db.Cursor = Depends(db.get_cursor)
-):
+@app.get("/plans/all", response_model=schemas.PlansResponse)
+async def get_plans(cursor: db.Cursor = Depends(db.get_cursor)):
     """
     Returns list of plans, each containing plan_id.
     """
-    db_records = await crud.get_plans_from_plan_ids_db(cursor, plan_ids.plan_ids)
+    db_records = await crud.get_plans_db(cursor)
     result = dict()
 
     if len(db_records) > 0:
