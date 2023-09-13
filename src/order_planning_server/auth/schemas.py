@@ -40,10 +40,10 @@ class PlansRequest(BaseModel):
 
 # response models
 class Indices(BaseModel):
-    planned_fulfilment_time: int
-    planned_unutilized_capacity: int
+    planned_fulfilment_time: float
+    planned_unutilized_capacity: float
     plan_generation_date: datetime.date
-    realised_fulfilment_time: int
+    realised_fulfilment_time: float
     realised_unutilized_capacity: float
 
 
@@ -62,10 +62,10 @@ class Factory(BaseModel):
     factory_name: str
     planned_datetimes: list[datetime.datetime]
     planned_unutilized_capacity: list[float]
-    planned_fulfilment_time: list[int]
+    planned_fulfilment_time: list[float]
     realised_dates: list[datetime.date]
     realised_unutilized_capacity: list[float]
-    realised_fulfilment_time: list[int]
+    realised_fulfilment_time: list[float]
     # str, str for planned fulfilment time, unutilized capacity
 
 
