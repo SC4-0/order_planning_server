@@ -84,7 +84,7 @@ async def get_customer_groups_data_db(
     limit: int = 100,
 ):
     query = f"""
-    SELECT csg.customer_site_group_id, csg.latitude, csg.longitude, o.order_date, oi.quantity, p.product_id, p.product_name 
+    SELECT csg.customer_site_group_id, csg.customer_site_group_name, csg.latitude, csg.longitude, o.order_date, oi.quantity, p.product_id, p.product_name 
     FROM customer_site_groups csg, customers c, orders o, order_items oi, products p 
     WHERE csg.customer_site_group_id = c.customer_site_group_id 
     AND c.customer_id = o.customer_id 
@@ -137,7 +137,7 @@ async def get_plans_db(
     cursor: Cursor, plan_id: int = None, skip: int = 0, limit: int = 100
 ):
     query = """
-    SELECT plan_id, planned_fulfilment_time, planned_unutilized_capacity, plan_generation_date, selected, autoselected, selection_date, plan_category 
+    SELECT plan_id, plan_category, planned_fulfilment_time, planned_unutilized_capacity, plan_generation_date, selected, autoselected, selection_date, plan_category 
     FROM plans"""
     if plan_id != None:
         query += f" WHERE plan_id = {plan_id}"
@@ -151,7 +151,7 @@ async def get_plans_db(
 
 async def get_plans_from_plan_ids_db(cursor: Cursor, plan_ids: list[int]):
     query = f"""
-    SELECT plan_id, planned_fulfilment_time, planned_unutilized_capacity, plan_generation_date, selected, autoselected, selection_date, plan_category 
+    SELECT plan_id, plan_category, planned_fulfilment_time, planned_unutilized_capacity, plan_generation_date, selected, autoselected, selection_date, plan_category 
     FROM plans WHERE plan_id IN ({','.join([str(i) for i in plan_ids])})"""
     print(plan_ids)
     print(query)

@@ -8,6 +8,7 @@ from fastapi import FastAPI, Depends, Query
 from itertools import groupby
 from operator import itemgetter, attrgetter
 from collections import defaultdict
+from fastapi.middleware.cors import CORSMiddleware
 
 from planning.orderPlanner import plan as plan_optimize
 import order_planning_server.auth.schemas as schemas
@@ -16,6 +17,15 @@ import order_planning_server.db.crud as crud
 
 app = FastAPI(title="Order planning server")
 
+origins = ["*"]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/indices", response_model=schemas.IndicesResponse)
 async def get_indices(cursor: db.Cursor = Depends(db.get_cursor)):
@@ -50,6 +60,14 @@ async def get_indices(cursor: db.Cursor = Depends(db.get_cursor)):
 
     # TODO add error if more than 1 row
 
+    # test = schemas.Indices(
+    #             planned_fulfilment_time=1,
+    #             planned_unutilized_capacity=1,
+    #             plan_generation_date=1,
+    #             realised_fulfilment_time=1,
+    #             realised_unutilized_capacity=1,
+    #         )
+    # result = schemas.IndicesResponse(data=test)
     return result
 
 
@@ -244,6 +262,7 @@ async def get_customer_groups_data(
             customer_groups.append(
                 schemas.CustomerGroup(
                     customer_group_id=sites[0].get("customer_site_group_id"),
+                    customer_group_name=sites[0].get("customer_site_group_name"),
                     latitude=sites[0].get("latitude"),
                     longitude=sites[0].get("longitude"),
                     products=product_list,
@@ -295,6 +314,7 @@ async def get_customer_group_data(
 
         customer_group = schemas.CustomerGroup(
             customer_group_id=db_records[0].get("customer_site_group_id"),
+            customer_group_name=db_records[0].get("customer_site_group_name"),
             latitude=db_records[0].get("latitude"),
             longitude=db_records[0].get("longitude"),
             products=product_list,
@@ -382,6 +402,7 @@ async def get_plans_from_plan_ids(
             plans.append(
                 schemas.Plan(
                     plan_id=row.get("plan_id"),
+                    plan_category=row.get("plan_category"),
                     planned_fulfilment_time=row.get("planned_fulfilment_time"),
                     planned_unutilized_capacity=row.get("planned_unutilized_capacity"),
                     plan_generation_date=row.get("plan_generation_date"),
@@ -410,6 +431,7 @@ async def get_plans(cursor: db.Cursor = Depends(db.get_cursor)):
             plans.append(
                 schemas.Plan(
                     plan_id=row.get("plan_id"),
+                    plan_category=row.get("plan_category"),
                     planned_fulfilment_time=row.get("planned_fulfilment_time"),
                     planned_unutilized_capacity=row.get("planned_unutilized_capacity"),
                     plan_generation_date=row.get("plan_generation_date"),

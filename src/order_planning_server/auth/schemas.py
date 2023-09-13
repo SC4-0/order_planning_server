@@ -87,6 +87,7 @@ class Product(BaseModel):
 # need to join customer_site_gp & customers & ordres & order_items & products
 class CustomerGroup(BaseModel):
     customer_group_id: int
+    customer_group_name: str
     latitude: float
     longitude: float
     products: list[Product]
@@ -122,6 +123,7 @@ class MultipleAllocationsResponse(BaseModel):
 
 class Plan(BaseModel):
     plan_id: int
+    plan_category: int
     planned_fulfilment_time: float
     planned_unutilized_capacity: float
     plan_generation_date: datetime.date
