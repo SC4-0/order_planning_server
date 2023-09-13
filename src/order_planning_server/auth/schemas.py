@@ -122,8 +122,8 @@ class MultipleAllocationsResponse(BaseModel):
 
 class Plan(BaseModel):
     plan_id: int
-    planned_fulfilment_time: int
-    planned_unutilized_capacity: int
+    planned_fulfilment_time: float
+    planned_unutilized_capacity: float
     plan_generation_date: datetime.date
     selected: int
     autoselected: int
