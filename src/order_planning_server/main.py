@@ -3,17 +3,19 @@
 import datetime
 import uvicorn
 import numpy as np
-import aio_pika
 from fastapi import FastAPI, Depends, Query
 from itertools import groupby
 from operator import itemgetter, attrgetter
 from collections import defaultdict
 from fastapi.middleware.cors import CORSMiddleware
+import asyncio
 
 from planning.orderPlanner import plan as plan_optimize
 import order_planning_server.auth.schemas as schemas
 import order_planning_server.db.db_conn as db
 import order_planning_server.db.crud as crud
+
+# import order_planning_server.db.broker_conn as br
 
 app = FastAPI(title="Order planning server")
 
@@ -26,6 +28,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 @app.get("/indices", response_model=schemas.IndicesResponse)
 async def get_indices(cursor: db.Cursor = Depends(db.get_cursor)):
@@ -481,6 +484,7 @@ async def optimize(
     factory_data2: list[schemas.FactoryData2],
     customer_data: list[schemas.CustomerGroupData],
     cursor: db.Cursor = Depends(db.get_cursor),
+    # connection: RobustConnection = Depends(br.get_connection)
 ):
     """
     Takes factory and customer data as input, stores planned solutions in database,
@@ -704,4 +708,14 @@ async def get_factory_targets(
 # get overall planned metrics from /plans/{plan_id}
 
 if __name__ == "__main__":
-    uvicorn.run("order_planning_server.main:app", host="0.0.0.0", port=8000)
+    # uvicorn.run("order_planning_server.main:app", host="0.0.0.0", port=8000)
+    loop = asyncio.new_event_loop()
+    config = uvicorn.Config(
+        app="order_planning_server.main:app",
+        loop=loop,
+        host="0.0.0.0",
+        port="8000",
+        log_level="info",
+    )
+    server = uvicorn.Server(config)
+    loop.run_until_complete(server.serve())
