@@ -14,6 +14,7 @@ from planning.orderPlanner import plan as plan_optimize
 import order_planning_server.auth.schemas as schemas
 import order_planning_server.db.db_conn as db
 import order_planning_server.db.crud as crud
+import order_planning_server.rabbit.publisher as publisher
 
 app = FastAPI(title="Order planning server")
 
@@ -583,7 +584,12 @@ async def optimize(
         cursor, plans_str, planned_factory_targets, planned_allocations
     )
 
-    result = schemas.PlanIdsResponse(plan_ids=db_records)  # process db records
+    result = schemas.PlanIdsResponse(plan_ids=db_records[0])  # process db records
+
+    config = { 'host': 'localhost', 'port': 5672, 'exchange' : '' }
+    rabbit = publisher.Publisher(config)
+    for plan in db_records[1]:
+        rabbit.publishMessage('order_allocation', plan)
 
     return result
 

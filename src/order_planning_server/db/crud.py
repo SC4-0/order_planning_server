@@ -207,10 +207,10 @@ async def insert_plans_db(
 ):
     plans_str = ",".join(plans_str)
     query1 = f"""
-    INSERT INTO plans OUTPUT INSERTED.plan_id VALUES {plans_str};
+    INSERT INTO plans OUTPUT INSERTED.* VALUES {plans_str};
     """
     await cursor.execute(query1)
-    result = await cursor.fetchall()  # plan_ids
+    result = await cursor.fetchall()
     plan_ids = [i[0] for i in result]
 
     planned_factory_targets_full = []
@@ -248,7 +248,36 @@ async def insert_plans_db(
     await cursor.commit()
     await cursor.close()
 
-    return plan_ids
+    message = [
+        {
+            "planned_fulfilment_time": 0,
+            "planned_unutilized_capacity": 0,
+            "plan_generation_date": "2023-07-21T02:21:57.767Z",
+            "selected": 1,
+            "autoselected": 1,
+            "selection_date": "2023-07-21T02:21:57.767Z",
+            "factory_id": 1,
+            "customer_site_group_id": 1,
+            "min_allocation_ratio": 0,
+            "max_allocation_ratio": 0.5,
+            "min_prod_hours": 4
+        },
+        {
+            "planned_fulfilment_time": 1,
+            "planned_unutilized_capacity": 1,
+            "plan_generation_date": "2023-09-21T02:21:57.767Z",
+            "selected": 1,
+            "autoselected": 1,
+            "selection_date": "2023-09-21T02:21:57.767Z",
+            "factory_id": 1,
+            "customer_site_group_id": 1,
+            "min_allocation_ratio": 1,
+            "max_allocation_ratio": 2.5,
+            "min_prod_hours": 3
+        }
+    ]
+
+    return [plan_ids, message]
 
 
 async def select_plan_db(
