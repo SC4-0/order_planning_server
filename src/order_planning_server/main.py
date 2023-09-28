@@ -28,6 +28,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get("/indices", response_model=schemas.IndicesResponse)
 async def get_indices(cursor: db.Cursor = Depends(db.get_cursor)):
     # untested due to lack of simultaneous factory metrics and planned targets data
@@ -584,12 +585,14 @@ async def optimize(
         cursor, plans_str, planned_factory_targets, planned_allocations
     )
 
-    result = schemas.PlanIdsResponse(plan_ids=db_records[0])  # process db records
+    result = schemas.PlanIdsResponse(plan_ids=db_records)  # process db records
 
+    """
     config = { 'host': 'localhost', 'port': 5672, 'exchange' : '' }
     rabbit = publisher.Publisher(config)
     for plan in db_records[1]:
         rabbit.publishMessage('order_allocation', plan)
+    """
 
     return result
 
@@ -641,7 +644,13 @@ async def post_selected_plan(
     plan_id: schemas.PlanRequest, cursor: db.Cursor = Depends(db.get_cursor)
 ):
     db_records = await crud.select_plan_db(cursor, plan_id)
-    result = dict()
+    config = {"host": "localhost", "port": 5672, "exchange": ""}
+    rabbit = publisher.Publisher(config)
+    for planned_allocation in db_records:
+        rabbit.publishMessage("order_allocation", planned_allocation)
+
+    if len(db_records) != 0:
+        return {"status": "success"}
 
     # if len(db_records) > 0:
     #     for row in db_records:
@@ -659,7 +668,7 @@ async def post_selected_plan(
     #         data= plan
     #     )
 
-    return result
+    return {"status": "failed"}
 
 
 # get allocation from /allocations

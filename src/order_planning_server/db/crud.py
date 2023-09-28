@@ -248,6 +248,7 @@ async def insert_plans_db(
     await cursor.commit()
     await cursor.close()
 
+    """
     message = [
         {
             "planned_fulfilment_time": 0,
@@ -260,7 +261,7 @@ async def insert_plans_db(
             "customer_site_group_id": 1,
             "min_allocation_ratio": 0,
             "max_allocation_ratio": 0.5,
-            "min_prod_hours": 4
+            "min_prod_hours": 4,
         },
         {
             "planned_fulfilment_time": 1,
@@ -273,20 +274,25 @@ async def insert_plans_db(
             "customer_site_group_id": 1,
             "min_allocation_ratio": 1,
             "max_allocation_ratio": 2.5,
-            "min_prod_hours": 3
-        }
+            "min_prod_hours": 3,
+        },
     ]
 
-    return [plan_ids, message]
+    """
+    return plan_ids
 
 
 async def select_plan_db(
     cursor: Cursor, plan_req: schemas.PlanRequest, skip: int = 0, limit: int = 100
 ):
-    query = f"""UPDATE plans SET selected = 1, selection_date = GETDATE() WHERE plan_id = {plan_req.plan_id}"""
+    query = f"""UPDATE plans SET selected = 1, selection_date = GETDATE() WHERE plan_id = {plan_req.plan_id};"""
 
     await cursor.execute(query)
     await cursor.commit()
+
+    query2 = f"""SELECT factory_id, customer_site_group_id, min_allocation_ratio, max_allocation_ratio FROM planned_allocations WHERE plan_id = {plan_req.plan_id};"""
+    await cursor.execute(query2)
+    result = await convert_to_dict(cursor)
     await cursor.close()
 
-    return {}
+    return result
