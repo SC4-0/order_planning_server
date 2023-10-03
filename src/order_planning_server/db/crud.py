@@ -294,5 +294,8 @@ async def select_plan_db(
     await cursor.execute(query2)
     result = await convert_to_dict(cursor)
     await cursor.close()
+    for row in result:
+        row["min_allocation_ratio"] = float(row["min_allocation_ratio"])
+        row["max_allocation_ratio"] = float(row["max_allocation_ratio"])
 
     return result
