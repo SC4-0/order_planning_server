@@ -118,6 +118,19 @@ async def get_allocation_by_planid(
     return result
 
 
+async def get_current_allocation(cursor: Cursor):
+    query = f"""
+    SELECT * FROM planned_allocations WHERE plan_id = 
+    (SELECT plan_id FROM plans WHERE selection_date = (SELECT MAX(selection_date) FROM plans))
+    ORDER BY factory_id, customer_site_group_id;
+    """
+    await cursor.execute(query)
+    result = await convert_to_dict(cursor)
+    await cursor.close()
+
+    return result
+
+
 async def get_allocation_by_planids(
     cursor: Cursor, plan_ids: list[int], skip: int = 0, limit: int = 100
 ):

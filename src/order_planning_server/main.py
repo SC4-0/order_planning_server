@@ -359,6 +359,36 @@ async def get_allocation(
     return result
 
 
+@app.get("/allocations/current", response_model=schemas.AllocationsResponse)
+async def get_current_allocation(cursor: db.Cursor = Depends(db.get_cursor)):
+    """
+    Returns allocation ratios for current plan_id, defined by plan_id with most
+    recent selection_date.
+    """
+    db_records = await crud.get_current_allocation(cursor)
+    result = dict()
+
+    if len(db_records) > 0:
+        allocations = []
+        for row in db_records:
+            allocations.append(
+                schemas.Allocation(
+                    factory_id=row.get("factory_id"),
+                    customer_site_group_id=row.get("customer_site_group_id"),
+                    min_allocation_ratio=row.get("min_allocation_ratio"),
+                    max_allocation_ratio=row.get("max_allocation_ratio"),
+                )
+            )
+
+        allocationResponse = schemas.Allocations(
+            plan_id=db_records[0].get("plan_id"), allocations=allocations
+        )
+
+        result = schemas.AllocationsResponse(data=allocationResponse)
+
+    return result
+
+
 @app.get("/allocations/{plan_id}", response_model=schemas.AllocationsResponse)
 async def get_allocation(plan_id: int, cursor: db.Cursor = Depends(db.get_cursor)):
     """
