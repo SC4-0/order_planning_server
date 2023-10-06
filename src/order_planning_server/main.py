@@ -289,20 +289,25 @@ async def get_customer_groups_data(
             sites = list(sites)
 
             product_list = []
-            sorted_products = sorted(sites, key=itemgetter("product_id"))
+            if "product_id" in sites[0]:
+                sorted_products = sorted(sites, key=itemgetter("product_id"))
 
-            for k, products in groupby(sorted_products, key=itemgetter("product_id")):
-                products = list(products)
-                product_list.append(
-                    schemas.Product(
-                        product_id=products[0].get("product_id"),
-                        product_name=products[0].get("product_name"),
-                        order_dates=[
-                            d["order_date"] for d in products if "order_date" in d
-                        ],
-                        quantities=[d["quantity"] for d in products if "quantity" in d],
+                for k, products in groupby(
+                    sorted_products, key=itemgetter("product_id")
+                ):
+                    products = list(products)
+                    product_list.append(
+                        schemas.Product(
+                            product_id=products[0].get("product_id"),
+                            product_name=products[0].get("product_name"),
+                            order_dates=[
+                                d["order_date"] for d in products if "order_date" in d
+                            ],
+                            quantities=[
+                                d["quantity"] for d in products if "quantity" in d
+                            ],
+                        )
                     )
-                )
 
             customer_groups.append(
                 schemas.CustomerGroup(

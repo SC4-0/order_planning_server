@@ -100,6 +100,11 @@ async def get_customer_groups_data_db(
 
     await cursor.execute(query)
     result = await convert_to_dict(cursor)
+    if len(result) == 0:
+        query = "SELECT * FROM customer_site_groups"
+        await cursor.execute(query)
+        result = await convert_to_dict(cursor)
+
     await cursor.close()
 
     return result
