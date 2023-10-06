@@ -105,6 +105,51 @@ async def get_factory_metrics(
         cursor, after, before
     )
 
+    if (len(db_records_planned) == 0) and (len(db_records_realised) > 0):
+        factory_dict = dict()
+        factory_list = []
+        sorted_rows_realised = sorted(db_records_realised, key=itemgetter("factory_id"))
+        for factory_id, factory_info in groupby(
+            sorted_rows_realised, key=itemgetter("factory_id")
+        ):
+            factory_info = list(factory_info)
+            factory_dict[factory_id] = dict()
+            factory_dict[factory_id]["factory_name"] = factory_info[0]["factory_name"]
+            factory_dict[factory_id]["realised_dates"] = [
+                l["record_date"] for l in factory_info if "record_date" in l
+            ]
+            factory_dict[factory_id]["realised_unutilized_capacity"] = [
+                l["unutilized_capacity"]
+                for l in factory_info
+                if "unutilized_capacity" in l
+            ]
+            factory_dict[factory_id]["realised_fulfilment_time"] = [
+                l["daily_order_fulfilment_time"]
+                for l in factory_info
+                if "daily_order_fulfilment_time" in l
+            ]
+
+        for factory in factory_dict:
+            factory_list.append(
+                schemas.Factory(
+                    factory_id=factory,
+                    factory_name=factory_dict[factory]["factory_name"],
+                    planned_datetimes=[],
+                    planned_unutilized_capacity=[],
+                    planned_fulfilment_time=[],
+                    realised_dates=factory_dict[factory]["realised_dates"],
+                    realised_unutilized_capacity=factory_dict[factory][
+                        "realised_unutilized_capacity"
+                    ],
+                    realised_fulfilment_time=factory_dict[factory][
+                        "realised_fulfilment_time"
+                    ],
+                )
+            )
+
+        result = schemas.FactoriesResponse(data=factory_list)
+        return result
+
     if (len(db_records_planned) > 0) and (len(db_records_realised) > 0):
         factory_dict = dict()
         factory_list = []

@@ -48,7 +48,7 @@ async def get_factory_metrics_db(
         """
 
         query_measured = f"""
-        SELECT fm.factory_id, fm.record_date, fm.daily_order_fulfilment_time, fm.unutilized_capacity FROM factory_metrics AS fm
+        SELECT f.factory_name, fm.factory_id, fm.record_date, fm.daily_order_fulfilment_time, fm.unutilized_capacity FROM factory_metrics AS fm JOIN factories AS f ON f.factory_id = fm.factory_id
         WHERE ((CAST(fm.record_date AS DATE) <= CAST('{before}' AS DATE)) AND (CAST(fm.record_date AS DATE) >= CAST('{after}' AS DATE)) AND (fm.factory_id = '{factory_id}'))
         ORDER BY fm.factory_id, fm.record_date;
         """
@@ -62,7 +62,7 @@ async def get_factory_metrics_db(
         """
 
         query_measured = f"""
-        SELECT fm.factory_id, fm.record_date, fm.daily_order_fulfilment_time, fm.unutilized_capacity FROM factory_metrics AS fm
+        SELECT f.factory_name, fm.factory_id, fm.record_date, fm.daily_order_fulfilment_time, fm.unutilized_capacity FROM factory_metrics AS fm JOIN factories AS f ON f.factory_id = fm.factory_id
         WHERE ((CAST(fm.record_date AS DATE) <= CAST('{before}' AS DATE)) AND (CAST(fm.record_date AS DATE) >= CAST('{after}' AS DATE)))
         ORDER BY fm.factory_id, fm.record_date;
         """
