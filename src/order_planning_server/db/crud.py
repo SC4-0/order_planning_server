@@ -40,28 +40,30 @@ async def get_factory_metrics_db(
 ):
     if factory_id != None:
         query_planned = f"""
-        SELECT pft.factory_id, p.plan_generation_date, pft.planned_fulfilment_time, pft.planned_unutilized_capacity, pft.factory_id, pft.factory_name
+        SELECT pft.factory_id, p.selection_date, pft.planned_fulfilment_time, pft.planned_unutilized_capacity, pft.factory_id, pft.factory_name
         FROM plans AS p JOIN (SELECT pt.factory_id, f.factory_name,pt.plan_id, pt.planned_fulfilment_time, pt.planned_unutilized_capacity, pt.planned_date,
 		pt.min_prod_hours from planned_factory_targets pt JOIN factories f ON pt.factory_id = f.factory_id) AS pft ON p.plan_id = pft.plan_id
-        WHERE ((p.selected = 1) AND (pft.factory_id = '{factory_id}') AND (CAST(p.plan_generation_date AS DATE) >= CAST('{after}' AS DATE))
-        AND (CAST(p.plan_generation_date AS DATE) <= CAST('{before}' AS DATE))) ORDER BY pft.factory_id, p.plan_generation_date;
+        WHERE ((p.selected = 1) AND (pft.factory_id = '{factory_id}') AND (CAST(p.selection_date AS DATE) >= CAST('{after}' AS DATE))
+        AND (CAST(p.selection_date AS DATE) <= CAST('{before}' AS DATE))) ORDER BY pft.factory_id, p.plan_generation_date;
         """
 
         query_measured = f"""
         SELECT fm.factory_id, fm.record_date, fm.daily_order_fulfilment_time, fm.unutilized_capacity FROM factory_metrics AS fm
-        WHERE fm.factory_id = '{factory_id}' ORDER BY fm.factory_id, fm.record_date;
+        WHERE ((CAST(fm.record_date AS DATE) <= CAST('{before}' AS DATE)) AND (CAST(fm.record_date AS DATE) >= CAST('{after}' AS DATE)) AND (fm.factory_id = '{factory_id}'))
+        ORDER BY fm.factory_id, fm.record_date;
         """
     else:
         query_planned = f"""
-        SELECT pft.factory_id, p.plan_generation_date, pft.planned_fulfilment_time, pft.planned_unutilized_capacity, pft.factory_id, pft.factory_name
+        SELECT pft.factory_id, p.selection_date, pft.planned_fulfilment_time, pft.planned_unutilized_capacity, pft.factory_id, pft.factory_name
         FROM plans AS p JOIN (SELECT pt.factory_id, f.factory_name,pt.plan_id, pt.planned_fulfilment_time, pt.planned_unutilized_capacity, pt.planned_date,
 		pt.min_prod_hours from planned_factory_targets pt JOIN factories f ON pt.factory_id = f.factory_id) AS pft ON p.plan_id = pft.plan_id
-         WHERE ((p.selected = 1) AND (CAST(p.plan_generation_date AS DATE) >= CAST('{after}' AS DATE))
-        AND (CAST(p.plan_generation_date AS DATE) <= CAST('{before}' AS DATE))) ORDER BY pft.factory_id, p.plan_generation_date;
+         WHERE ((p.selected = 1) AND (CAST(p.selection_date AS DATE) >= CAST('{after}' AS DATE))
+        AND (CAST(p.selection_date AS DATE) <= CAST('{before}' AS DATE))) ORDER BY pft.factory_id, p.plan_generation_date;
         """
 
         query_measured = f"""
         SELECT fm.factory_id, fm.record_date, fm.daily_order_fulfilment_time, fm.unutilized_capacity FROM factory_metrics AS fm
+        WHERE ((CAST(fm.record_date AS DATE) <= CAST('{before}' AS DATE)) AND (CAST(fm.record_date AS DATE) >= CAST('{after}' AS DATE)))
         ORDER BY fm.factory_id, fm.record_date;
         """
 

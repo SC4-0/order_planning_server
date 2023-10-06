@@ -117,9 +117,7 @@ async def get_factory_metrics(
             factory_dict[factory_id] = dict()
             factory_dict[factory_id]["factory_name"] = factory_info[0]["factory_name"]
             factory_dict[factory_id]["planned_datetimes"] = [
-                l["plan_generation_date"]
-                for l in factory_info
-                if "plan_generation_date" in l
+                l["selection_date"] for l in factory_info if "selection_date" in l
             ]
             factory_dict[factory_id]["planned_unutilized_capacity"] = [
                 l["planned_unutilized_capacity"]
@@ -201,7 +199,7 @@ async def get_factory(
         factory = schemas.Factory(
             factory_id=db_records_planned[0].get("factory_id"),
             factory_name=db_records_planned[0].get("factory_name"),
-            planned_datetimes=[d["plan_generation_date"] for d in db_records_planned],
+            planned_datetimes=[d["selection_date"] for d in db_records_planned],
             planned_unutilized_capacity=[
                 d["planned_unutilized_capacity"] for d in db_records_planned
             ],
