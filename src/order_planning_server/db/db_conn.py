@@ -65,7 +65,7 @@ async def get_cursor() -> Cursor:
         "yes",
         "yes",
     )
-    conn_string_obj.set_uid_and_pwd("SA", "appQWE123!@#")
+    conn_string_obj.set_uid_and_pwd("SA", "")
     conn_string = str(conn_string_obj)
     conn = await connect(dsn=conn_string, loop=loop)
     cursor = await conn.cursor()

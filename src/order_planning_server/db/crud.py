@@ -94,8 +94,8 @@ async def get_customer_groups_data_db(
     AND c.customer_id = o.customer_id 
     AND o.order_id = oi.order_id 
     AND oi.item_id = p.product_id 
-    AND o.order_date >= '{after}'
-    AND o.order_date <= '{before}'
+    AND cast(o.order_date as date) >= '{after}'
+    AND cast(o.order_date as date) <= '{before}'
     """
     if customer_group_id != None:
         query += f" AND csg.customer_site_group_id = {customer_group_id}"
