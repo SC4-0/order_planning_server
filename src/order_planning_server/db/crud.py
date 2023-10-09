@@ -13,21 +13,23 @@ async def convert_to_dict(cursor: Cursor):
 async def get_indices_db(cursor: Cursor):
     # query = "SELECT planned_fulfilment_time, planned_unutilized_capacity, daily_order_fulfilment_time, unutilized_capacity, record_date FROM order_planning..plans INNER JOIN (SELECT AVG(CAST(daily_order_fulfilment_time AS FLOAT)) AS daily_order_fulfilment_time, AVG(CAST(unutilized_capacity AS FLOAT)) AS unutilized_capacity, (SELECT MAX(record_date) FROM order_planning..factory_metrics) AS record_date FROM order_planning..factory_metrics WHERE record_date=(SELECT MAX(record_date) FROM order_planning..factory_metrics)) AS FM ON plans.plan_generation_date=fm.record_date;"
 
-    query = """
-    SELECT planned_fulfilment_time, planned_unutilized_capacity, daily_order_fulfilment_time, unutilized_capacity, record_date 
-    FROM [plans] INNER JOIN 
-    (SELECT AVG(CAST(daily_order_fulfilment_time AS FLOAT)) AS daily_order_fulfilment_time, 
-    AVG(CAST(unutilized_capacity AS FLOAT)) AS unutilized_capacity, 
-    MAX(record_date) AS record_date 
-    FROM [factory_metrics] 
-    WHERE record_date=(SELECT MAX(record_date) FROM [factory_metrics])) AS FM 
-    ON CAST(plans.plan_generation_date AS DATE) = fm.record_date
-    WHERE plans.selected = 1 AND plans.plan_generation_date = (SELECT MAX(plans.plan_generation_date) from plans);"""
-    await cursor.execute(query)
-    result = await convert_to_dict(cursor)
+    query1 = """
+    select * from plans where selection_date = (select max(selection_date) from plans);
+    """
+    await cursor.execute(query1)
+    result1 = await convert_to_dict(cursor)
+    
+    query2 = """
+    select avg(daily_order_fulfilment_time) as daily_order_fulfilment_time, avg(unutilized_capacity) as unutilized_capacity,
+    max(record_date) as record_date from factory_metrics where record_date = (select max(record_date) from factory_metrics);
+    """
+    await cursor.execute(query2)
+    result2 = await convert_to_dict(cursor)
+    
+    result1[0].update(result2[0])
     await cursor.close()
 
-    return result
+    return result1
 
 
 async def get_factory_metrics_db(

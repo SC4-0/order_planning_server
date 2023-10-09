@@ -42,9 +42,10 @@ class PlansRequest(BaseModel):
 class Indices(BaseModel):
     planned_fulfilment_time: float
     planned_unutilized_capacity: float
-    plan_generation_date: datetime.date
+    plan_selection_date: datetime.date
     realised_fulfilment_time: float
     realised_unutilized_capacity: float
+    factory_metrics_record_date: datetime.date
 
 
 # return only one column and date of indices

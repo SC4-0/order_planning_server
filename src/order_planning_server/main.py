@@ -53,9 +53,10 @@ async def get_indices(cursor: db.Cursor = Depends(db.get_cursor)):
             indices = schemas.Indices(
                 planned_fulfilment_time=row.get("planned_fulfilment_time"),
                 planned_unutilized_capacity=row.get("planned_unutilized_capacity"),
-                plan_generation_date=row.get("record_date"),
+                plan_selection_date=row.get("selection_date"),
                 realised_fulfilment_time=row.get("daily_order_fulfilment_time"),
                 realised_unutilized_capacity=row.get("unutilized_capacity"),
+                factory_metrics_record_date=row.get("record_date")
             )
 
         result = schemas.IndicesResponse(data=indices)
