@@ -3,6 +3,7 @@ from aioodbc.cursor import Cursor
 from fastapi import HTTPException
 from enum import Enum, auto
 from asyncio import get_event_loop
+import os
 
 loop = get_event_loop()
 
@@ -23,10 +24,12 @@ SQL Server connection string syntax
 class SQL_Server_Connection_String:
     def __init__(
         self,
-        database_driver: str,
-        server: str,
-        port: int,
-        database: str,
+        database_driver=os.environ.get(
+            "SQL_SERVER_DATABASE_DRIVER", "ODBC Driver 18 for SQL Server"
+        ),
+        server=os.environ.get("SQL_SERVER_HOST", "host.docker.internal"),
+        port=os.environ.get("SQL_SERVER_PORT", 1433),
+        database=os.environ.get("SQL_SERVER_DATABASE", "order_planning"),
         encrypt=Binary_Value.YES,
         trust_server_cert=Binary_Value.YES,
     ) -> None:
@@ -57,15 +60,11 @@ class SQL_Server_Connection_String:
 
 
 async def get_cursor() -> Cursor:
-    conn_string_obj = SQL_Server_Connection_String(
-        "ODBC Driver 18 for SQL Server",
-        "host.docker.internal",
-        1433,
-        "order_planning",
-        "yes",
-        "yes",
+    conn_string_obj = SQL_Server_Connection_String()
+    conn_string_obj.set_uid_and_pwd(
+        os.environ.get("SQL_SERVER_UID", "SA"),
+        os.environ.get("SQL_SERVER_PWD", "appQWE123!@#"),
     )
-    conn_string_obj.set_uid_and_pwd("SA", "")
     conn_string = str(conn_string_obj)
     conn = await connect(dsn=conn_string, loop=loop)
     cursor = await conn.cursor()

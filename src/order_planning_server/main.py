@@ -56,7 +56,7 @@ async def get_indices(cursor: db.Cursor = Depends(db.get_cursor)):
                 plan_selection_date=row.get("selection_date"),
                 realised_fulfilment_time=row.get("daily_order_fulfilment_time"),
                 realised_unutilized_capacity=row.get("unutilized_capacity"),
-                factory_metrics_record_date=row.get("record_date")
+                factory_metrics_record_date=row.get("record_date"),
             )
 
         result = schemas.IndicesResponse(data=indices)
@@ -666,13 +666,6 @@ async def optimize(
 
     result = schemas.PlanIdsResponse(plan_ids=db_records)  # process db records
 
-    """
-    config = { 'host': 'localhost', 'port': 5672, 'exchange' : '' }
-    rabbit = publisher.Publisher(config)
-    for plan in db_records[1]:
-        rabbit.publishMessage('order_allocation', plan)
-    """
-
     return result
 
 
@@ -723,8 +716,7 @@ async def post_selected_plan(
     plan_id: schemas.PlanRequest, cursor: db.Cursor = Depends(db.get_cursor)
 ):
     db_records = await crud.select_plan_db(cursor, plan_id)
-    config = {"host": "localhost", "port": 5672, "exchange": ""}
-    rabbit = publisher.Publisher(config)
+    rabbit = publisher.Publisher()
     for planned_allocation in db_records:
         rabbit.publishMessage("order_allocation", planned_allocation)
 
