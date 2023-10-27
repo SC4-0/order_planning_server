@@ -83,7 +83,7 @@ async def get_orders_db(cursor: Cursor, after: datetime.date, before: datetime.d
     SELECT o.order_id, o.customer_id, o.customer_site_group_id, o.order_date, o.assigned_factory_id, oi.item_id, oi.quantity FROM
     (SELECT order_id, orders.customer_id, order_date, assigned_factory_id, customer_site_group_id FROM orders
     INNER JOIN customers ON orders.customer_id = customers.customer_id) AS o
-    INNER JOIN order_items AS oi ON o.order_id = oi.order_id;
+    INNER JOIN order_items AS oi ON o.order_id = oi.order_id WHERE cast(order_date as date) >= '{after}' AND cast(order_date as date) <= '{before}'
     """
     await cursor.execute(query)
     result = await convert_to_dict(cursor)
