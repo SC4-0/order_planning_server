@@ -5,7 +5,7 @@ import os
 class Publisher:
     def __init__(
         self,
-        host=os.environ.get("RABBITMQ_URL", "localhost"),
+        host=os.environ.get("RABBITMQ_HOST", "localhost"),
         port=os.environ.get("RABBITMQ_PORT", 5672),
         exchange=os.environ.get("RABBITMQ_PUBLISH_EXCHANGE", ""),
     ) -> None:

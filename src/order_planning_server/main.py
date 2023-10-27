@@ -31,7 +31,6 @@ app.add_middleware(
 
 @app.get("/indices", response_model=schemas.IndicesResponse)
 async def get_indices(cursor: db.Cursor = Depends(db.get_cursor)):
-    # untested due to lack of simultaneous factory metrics and planned targets data
     """
     Returns indices with values averaged across all factories. This
     provides a summary view of order fulfilment status. Since the
@@ -85,6 +84,29 @@ async def get_indices(cursor: db.Cursor = Depends(db.get_cursor)):
 #     """
 #     return
 
+@app.get("/orders", response_model=schemas.OrdersResponse)
+async def get_orders(
+    after: datetime.date,
+    before: datetime.date,
+    cursor: db.Cursor = Depends(db.get_cursor),
+):
+    # extract orders from db
+    result = await crud.get_orders_db(
+        cursor, after, before
+    )
+    data = []
+    for r in result:
+        data.append(schemas.OrderResponse(
+            date=r.get("order_date"),
+            order_id=r.get("order_id"),
+            customer_id=r.get("customer_id"),
+            customer_group_id=r.get("customer_site_group_id"),
+            product_id=r.get("item_id"),
+            num_products=r.get("quantity"),
+            assigned_factory_id=r.get("assigned_factory_id")
+        ))
+    orders = schemas.OrdersResponse(orders=data)
+    return orders
 
 @app.get("/factory_metrics", response_model=schemas.FactoriesResponse)
 async def get_factory_metrics(
@@ -721,7 +743,7 @@ async def post_selected_plan(
         rabbit.publishMessage("order_allocation", planned_allocation)
 
     if len(db_records) != 0:
-        return {"status": "success"}
+        return {"result": "success"}
 
     # if len(db_records) > 0:
     #     for row in db_records:
@@ -739,7 +761,7 @@ async def post_selected_plan(
     #         data= plan
     #     )
 
-    return {"status": "failed"}
+    return {"result": "failed"}
 
 
 # get allocation from /allocations

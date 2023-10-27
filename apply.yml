@@ -1,0 +1,53 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-planning-server
+spec:
+  selector:
+    matchLabels:
+      app: order-planning-server
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: order-planning-server
+    spec:
+      containers:
+        - name: order-planning-server
+          image: kxingjing/order_planning_server:1.0.0
+          env:
+            - name: "RABBITMQ_HOST"
+              value: "host.docker.internal"
+            - name: "RABBITMQ_PORT"
+              value: "31672"
+            - name: "RABBITMQ_PUBLISH_EXCHANGE"
+              value: ""
+            - name: "SQL_SERVER_DATABASE_DRIVER"
+              value: "ODBC Driver 18 for SQL Server"
+            - name: "SQL_SERVER_HOST"
+              value: "host.docker.internal"
+            - name: "SQL_SERVER_PORT"
+              value: "1433"
+            - name: "SQL_SERVER_DATABASE"
+              value: "order_planning"
+            - name: "SQL_SERVER_UID"
+              value: "SA"
+            - name: "SQL_SERVER_PWD"
+              value: "Password123!"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-planning-server
+  labels:
+    app: order-planning-server
+spec:
+  ports:
+    - targetPort: 8000
+      port: 8000
+      nodePort: 30002
+      protocol: TCP
+  selector:
+    app: order-planning-server
+  type: NodePort

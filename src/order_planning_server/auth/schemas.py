@@ -181,3 +181,17 @@ class PlannedFactoryTargets(BaseModel):
 
 class FactoryTargetResponse(BaseModel):
     data: list[PlannedFactoryTargets]
+
+
+class OrderResponse(BaseModel):
+    date: datetime.date
+    order_id: int
+    customer_id: int
+    customer_group_id: int
+    product_id: int
+    num_products: int
+    assigned_factory_id: int
+
+class OrdersResponse(BaseModel):
+    orders: list[OrderResponse]
+

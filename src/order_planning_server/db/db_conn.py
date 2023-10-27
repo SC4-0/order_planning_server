@@ -63,7 +63,7 @@ async def get_cursor() -> Cursor:
     conn_string_obj = SQL_Server_Connection_String()
     conn_string_obj.set_uid_and_pwd(
         os.environ.get("SQL_SERVER_UID", "SA"),
-        os.environ.get("SQL_SERVER_PWD", "appQWE123!@#"),
+        os.environ.get("SQL_SERVER_PWD", ""),
     )
     conn_string = str(conn_string_obj)
     conn = await connect(dsn=conn_string, loop=loop)
