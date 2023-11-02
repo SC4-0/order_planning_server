@@ -63,6 +63,12 @@ async def get_factory_metrics_db(
         AND (CAST(p.selection_date AS DATE) <= CAST('{before}' AS DATE))) ORDER BY pft.factory_id, p.plan_generation_date;
         """
 
+        query_planned_2 = f"""
+        SELECT factory_id, planned_fulfilment_time, planned_unutilized_capacity, factory_id FROM planned_factory_targets WHERE
+        plan_id = (SELECT plan_id FROM plans WHERE selected = 1 AND selection_date = (SELECT MAX(selection_date) FROM plans
+        WHERE selection_date <= CAST('{before}' AS DATE)));"""
+
+
         query_measured = f"""
         SELECT f.factory_name, fm.factory_id, fm.record_date, fm.daily_order_fulfilment_time, fm.unutilized_capacity FROM factory_metrics AS fm JOIN factories AS f ON f.factory_id = fm.factory_id
         WHERE ((CAST(fm.record_date AS DATE) <= CAST('{before}' AS DATE)) AND (CAST(fm.record_date AS DATE) >= CAST('{after}' AS DATE)))
@@ -74,9 +80,12 @@ async def get_factory_metrics_db(
 
     await cursor.execute(query_measured)
     res_measured = await convert_to_dict(cursor)
+
+    await cursor.execute(query_planned_2)
+    res_planned_2 = await convert_to_dict(cursor)
     await cursor.close()
 
-    return (res_planned, res_measured)
+    return (res_planned, res_measured, res_planned_2)
 
 async def get_orders_db(cursor: Cursor, after: datetime.date, before: datetime.date):
     query = f"""
@@ -111,6 +120,8 @@ async def get_customer_groups_data_db(
     """
     if customer_group_id != None:
         query += f" AND csg.customer_site_group_id = {customer_group_id}"
+    
+    query += " ORDER BY o.order_date ASC"
 
     await cursor.execute(query)
     result = await convert_to_dict(cursor)
