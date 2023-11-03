@@ -184,14 +184,17 @@ class FactoryTargetResponse(BaseModel):
 
 
 class OrderResponse(BaseModel):
-    date: datetime.date
+    date: datetime.datetime
     order_id: int
     customer_id: int
     customer_group_id: int
+    customer_group_name: str
     product_id: int
+    product_name: str
     num_products: int
     assigned_factory_id: int
+    assigned_factory_name: str
+
 
 class OrdersResponse(BaseModel):
     orders: list[OrderResponse]
-

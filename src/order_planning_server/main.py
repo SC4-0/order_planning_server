@@ -84,6 +84,7 @@ async def get_indices(cursor: db.Cursor = Depends(db.get_cursor)):
 #     """
 #     return
 
+
 @app.get("/orders", response_model=schemas.OrdersResponse)
 async def get_orders(
     after: datetime.date,
@@ -91,22 +92,26 @@ async def get_orders(
     cursor: db.Cursor = Depends(db.get_cursor),
 ):
     # extract orders from db
-    result = await crud.get_orders_db(
-        cursor, after, before
-    )
+    result = await crud.get_orders_db(cursor, after, before)
     data = []
     for r in result:
-        data.append(schemas.OrderResponse(
-            date=r.get("order_date"),
-            order_id=r.get("order_id"),
-            customer_id=r.get("customer_id"),
-            customer_group_id=r.get("customer_site_group_id"),
-            product_id=r.get("item_id"),
-            num_products=r.get("quantity"),
-            assigned_factory_id=r.get("assigned_factory_id")
-        ))
+        data.append(
+            schemas.OrderResponse(
+                date=r.get("order_date"),
+                order_id=r.get("order_id"),
+                customer_id=r.get("customer_id"),
+                customer_group_id=r.get("customer_site_group_id"),
+                customer_group_name=r.get("customer_site_group_name"),
+                product_id=r.get("item_id"),
+                product_name=r.get("product_name"),
+                num_products=r.get("quantity"),
+                assigned_factory_id=r.get("assigned_factory_id"),
+                assigned_factory_name=r.get("factory_name"),
+            )
+        )
     orders = schemas.OrdersResponse(orders=data)
     return orders
+
 
 @app.get("/factory_metrics", response_model=schemas.FactoriesResponse)
 async def get_factory_metrics(
@@ -124,9 +129,11 @@ async def get_factory_metrics(
     - realised fulfilment time
     - realised unutilized capacity
     """
-    db_records_planned, db_records_realised, db_records_planned_backfill = await crud.get_factory_metrics_db(
-        cursor, after, before
-    )
+    (
+        db_records_planned,
+        db_records_realised,
+        db_records_planned_backfill,
+    ) = await crud.get_factory_metrics_db(cursor, after, before)
 
     if (len(db_records_planned) == 0) and (len(db_records_realised) > 0):
         factory_dict = dict()
@@ -157,9 +164,29 @@ async def get_factory_metrics(
                 schemas.Factory(
                     factory_id=factory,
                     factory_name=factory_dict[factory]["factory_name"],
-                    planned_datetimes=[datetime.datetime.combine(after, datetime.time.min)],
-                    planned_unutilized_capacity=[float(list(filter(lambda x: (x.get("factory_id") == factory), db_records_planned_backfill))[0].get("planned_unutilized_capacity"))],
-                    planned_fulfilment_time=[float(list(filter(lambda x: (x.get("factory_id") == factory), db_records_planned_backfill))[0].get("planned_fulfilment_time"))],
+                    planned_datetimes=[
+                        datetime.datetime.combine(after, datetime.time.min)
+                    ],
+                    planned_unutilized_capacity=[
+                        float(
+                            list(
+                                filter(
+                                    lambda x: (x.get("factory_id") == factory),
+                                    db_records_planned_backfill,
+                                )
+                            )[0].get("planned_unutilized_capacity")
+                        )
+                    ],
+                    planned_fulfilment_time=[
+                        float(
+                            list(
+                                filter(
+                                    lambda x: (x.get("factory_id") == factory),
+                                    db_records_planned_backfill,
+                                )
+                            )[0].get("planned_fulfilment_time")
+                        )
+                    ],
                     realised_dates=factory_dict[factory]["realised_dates"],
                     realised_unutilized_capacity=factory_dict[factory][
                         "realised_unutilized_capacity"
@@ -216,13 +243,39 @@ async def get_factory_metrics(
             ]
 
         for factory in factory_dict:
-            if (len(db_records_planned_backfill) > 0) and (factory_dict[factory]["planned_datetimes"][0].date() != after):
+            if (len(db_records_planned_backfill) > 0) and (
+                factory_dict[factory]["planned_datetimes"][0].date() != after
+            ):
                 pdt = [datetime.datetime.combine(after, datetime.time.min)]
-                factory_dict[factory]["planned_datetimes"] = pdt + factory_dict[factory]["planned_datetimes"]
-                puc = [float(list(filter(lambda x: (x.get("factory_id") == factory), db_records_planned_backfill))[0].get("planned_unutilized_capacity"))]
-                factory_dict[factory]["planned_unutilized_capacity"] = puc + factory_dict[factory]["planned_unutilized_capacity"]
-                pft = [float(list(filter(lambda x: (x.get("factory_id") == factory), db_records_planned_backfill))[0].get("planned_fulfilment_time"))]
-                factory_dict[factory]["planned_fulfilment_time"] = pft + factory_dict[factory]["planned_fulfilment_time"]
+                factory_dict[factory]["planned_datetimes"] = (
+                    pdt + factory_dict[factory]["planned_datetimes"]
+                )
+                puc = [
+                    float(
+                        list(
+                            filter(
+                                lambda x: (x.get("factory_id") == factory),
+                                db_records_planned_backfill,
+                            )
+                        )[0].get("planned_unutilized_capacity")
+                    )
+                ]
+                factory_dict[factory]["planned_unutilized_capacity"] = (
+                    puc + factory_dict[factory]["planned_unutilized_capacity"]
+                )
+                pft = [
+                    float(
+                        list(
+                            filter(
+                                lambda x: (x.get("factory_id") == factory),
+                                db_records_planned_backfill,
+                            )
+                        )[0].get("planned_fulfilment_time")
+                    )
+                ]
+                factory_dict[factory]["planned_fulfilment_time"] = (
+                    pft + factory_dict[factory]["planned_fulfilment_time"]
+                )
 
             factory_list.append(
                 schemas.Factory(

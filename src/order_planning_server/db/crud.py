@@ -18,14 +18,14 @@ async def get_indices_db(cursor: Cursor):
     """
     await cursor.execute(query1)
     result1 = await convert_to_dict(cursor)
-    
+
     query2 = """
     select avg(daily_order_fulfilment_time) as daily_order_fulfilment_time, avg(unutilized_capacity) as unutilized_capacity,
     max(record_date) as record_date from factory_metrics where record_date = (select max(record_date) from factory_metrics);
     """
     await cursor.execute(query2)
     result2 = await convert_to_dict(cursor)
-    
+
     result1[0].update(result2[0])
     await cursor.close()
 
@@ -68,7 +68,6 @@ async def get_factory_metrics_db(
         plan_id = (SELECT plan_id FROM plans WHERE selected = 1 AND selection_date = (SELECT MAX(selection_date) FROM plans
         WHERE selection_date <= CAST('{before}' AS DATE)));"""
 
-
         query_measured = f"""
         SELECT f.factory_name, fm.factory_id, fm.record_date, fm.daily_order_fulfilment_time, fm.unutilized_capacity FROM factory_metrics AS fm JOIN factories AS f ON f.factory_id = fm.factory_id
         WHERE ((CAST(fm.record_date AS DATE) <= CAST('{before}' AS DATE)) AND (CAST(fm.record_date AS DATE) >= CAST('{after}' AS DATE)))
@@ -87,17 +86,20 @@ async def get_factory_metrics_db(
 
     return (res_planned, res_measured, res_planned_2)
 
+
 async def get_orders_db(cursor: Cursor, after: datetime.date, before: datetime.date):
     query = f"""
-    SELECT o.order_id, o.customer_id, o.customer_site_group_id, o.order_date, o.assigned_factory_id, oi.item_id, oi.quantity FROM
-    (SELECT order_id, orders.customer_id, order_date, assigned_factory_id, customer_site_group_id FROM orders
-    INNER JOIN customers ON orders.customer_id = customers.customer_id) AS o
-    INNER JOIN order_items AS oi ON o.order_id = oi.order_id WHERE cast(order_date as date) >= '{after}' AND cast(order_date as date) <= '{before}'
+    SELECT o.order_id, o.customer_id, o.customer_site_group_id, o.customer_site_group_name, o.order_date, o.assigned_factory_id, o.factory_name, oi.item_id, oi.quantity, oi.product_name FROM
+    (SELECT order_id, orders.customer_id, order_date, assigned_factory_id, customer_site_groups.customer_site_group_id, customer_site_group_name, factory_name FROM orders
+    INNER JOIN customers ON orders.customer_id = customers.customer_id INNER JOIN customer_site_groups ON customer_site_groups.customer_site_group_id = customers.customer_site_group_id
+	INNER JOIN factories ON orders.assigned_factory_id = factories.factory_id) AS o
+    INNER JOIN (SELECT order_items.order_id, order_items.item_id, order_items.quantity, products.product_name FROM order_items
+	INNER JOIN products ON order_items.item_id = products.product_id) AS oi ON o.order_id = oi.order_id
+	WHERE cast(order_date as date) >= '{after}' AND cast(order_date as date) <= '{before}';
     """
     await cursor.execute(query)
     result = await convert_to_dict(cursor)
     return result
-
 
 
 async def get_customer_groups_data_db(
@@ -120,7 +122,7 @@ async def get_customer_groups_data_db(
     """
     if customer_group_id != None:
         query += f" AND csg.customer_site_group_id = {customer_group_id}"
-    
+
     query += " ORDER BY o.order_date ASC"
 
     await cursor.execute(query)
