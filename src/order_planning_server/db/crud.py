@@ -66,7 +66,7 @@ async def get_factory_metrics_db(
         query_planned_2 = f"""
         SELECT factory_id, planned_fulfilment_time, planned_unutilized_capacity, factory_id FROM planned_factory_targets WHERE
         plan_id = (SELECT plan_id FROM plans WHERE selected = 1 AND selection_date = (SELECT MAX(selection_date) FROM plans
-        WHERE selection_date <= CAST('{before}' AS DATE)));"""
+        WHERE selection_date <= CAST('{after}' AS DATE)));"""
 
         query_measured = f"""
         SELECT f.factory_name, fm.factory_id, fm.record_date, fm.daily_order_fulfilment_time, fm.unutilized_capacity FROM factory_metrics AS fm JOIN factories AS f ON f.factory_id = fm.factory_id

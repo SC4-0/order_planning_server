@@ -349,6 +349,36 @@ async def get_factory(
     return dict()
 
 
+def get_list_of_dates(after: datetime.date, before: datetime.date):
+    if after.year == before.year:
+        year = after.year
+        starting_month = after.month
+        ending_month = before.month
+        collect = []
+        if starting_month == ending_month:
+            for i in range(before.day - after.day):
+                collect.append(datetime.date(after.year, after.month, after.day + i))
+            collect.append(datetime.date(after.year, after.month, before.day))
+        if starting_month < ending_month:
+            # get days until next month
+            # if middle month, loop through all days
+            # if ending month, day until end date
+            for i in range(ending_month - starting_month):
+                curr_month = starting_month + i
+                if i == 0:
+                    curr_day = after.day
+                else:
+                    curr_day = 1
+                days_in_curr_month = (datetime.date(year, curr_month + 1, 1) - datetime.date(year, curr_month, 1)).days
+                for j in range(curr_day, days_in_curr_month + 1):
+                    collect.append(datetime.date(year, curr_month, j))
+            # ending month
+            for k in range(1, before.day + 1):
+                collect.append(datetime.date(year, before.month, k))
+    return collect
+    
+
+
 @app.get("/customer_groups_data", response_model=schemas.CustomerGroupsResponse)
 async def get_customer_groups_data(
     after: datetime.date,
@@ -380,16 +410,25 @@ async def get_customer_groups_data(
                     sorted_products, key=itemgetter("product_id")
                 ):
                     products = list(products)
+                    dates = get_list_of_dates(after, before)
+                    dates_quantities = defaultdict(int)
+                    for p in products:
+                        dates_quantities[p['order_date'].date()] += p['quantity']
+                    for d in dates:
+                        dates_quantities[d] += 0
+
                     product_list.append(
                         schemas.Product(
                             product_id=products[0].get("product_id"),
                             product_name=products[0].get("product_name"),
-                            order_dates=[
-                                d["order_date"] for d in products if "order_date" in d
-                            ],
-                            quantities=[
-                                d["quantity"] for d in products if "quantity" in d
-                            ],
+                            #order_dates=[
+                            #    d["order_date"] for d in products if "order_date" in d
+                            #],
+                            order_dates=dates,
+                            #quantities=[
+                            #    d["quantity"] for d in products if "quantity" in d
+                            #],
+                            quantities=[dates_quantities[d] for d in dates]
                         )
                     )
 
